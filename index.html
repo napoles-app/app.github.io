@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nápoles Congelados</title>
+    <style>
+        :root { --azul: #1f4e79; --rojo: #e74c3c; --verde: #2ecc71; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; background: #f2f4f7; }
+        header { background: var(--azul); color: #fff; padding: 12px; text-align: center; position: sticky; top: 0; }
+        .container { max-width: 1000px; margin: auto; padding: 10px; }
+        .card { background: #fff; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+        input, textarea, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+        .input-group input { width: 60px !important; padding: 6px; text-align: center; }
+        .product-add { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; }
+        .product-add:hover { background: #f9f9f9; }
+        .badge { background: var(--azul); color: #fff; padding: 4px 8px; border-radius: 12px; }
+        .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .actions button { padding: 10px 14px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal-content { background: #fff; margin: 10% auto; padding: 20px; border-radius: 10px; width: 90%; max-width: 600px; }
+        .history-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .history-item:hover { background: #f0f0f0; }
+        .history-item .info { flex: 1; }
+        .history-item .history-actions { display: flex; gap: 6px; }
+        .history-item .history-actions button { padding: 4px 8px; }
+        @media (min-width: 768px) {
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .table th, .table td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        .table th { background: #f2f2f2; }
+        .search-box { margin-bottom: 10px; }
+        .section-title { font-size: 16px; margin-bottom: 8px; color: var(--azul); border-bottom: 1px solid var(--azul); padding-bottom: 4px; }
+        .product-section { margin-bottom: 15px; }
+        .pestana { display: none; }
+        .pestana.active { display: block; }
+        button.delete { background: var(--rojo); }
+        button.delete:hover { background: #c0392b; }
+        button.success { background: var(--verde); }
+        button.success:hover { background: #27ae60; }
+        .input-group { display: flex; gap: 8px; align-items: center; }
+    </style>
+</head>
+<body>
+    <header>
+        <h2>NÁPOLES CONGELADOS</h2>
+        <div>Remito: <span id="remitoNumero">Nuevo</span></div>
+    </header>
+
+    <div class="container">
+        <!-- Pestañas -->
+        <div class="card">
+            <div class="actions">
+                <button onclick="cambiarPestana('remitos')">Remitos</button>
+                <button onclick="cambiarPestana('clientes')">Clientes</button>
+                <button onclick="cambiarPestana('vendedores')">Vendedores</button>
+                <button onclick="cambiarPestana('productos')">Productos</button>
+                <button onclick="cambiarPestana('historial')">Historial</button>
+                <button onclick="cerrarJornada()" class="success">Cerrar Jornada</button>
+            </div>
+        </div>
+
+        <!-- Sección de Remitos -->
+        <div id="pestana-remitos" class="pestana active">
+            <div class="card grid">
+                <div>
+                    <label>Vendedor</label>
+                    <select id="vendedor" onchange="actualizarZonasVendedor()">
+                        <option value="">Seleccionar vendedor</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Zona</label>
+                    <select id="zonaVendedor" onchange="actualizarClientesPorZona()">
+                        <option value="">Seleccionar zona</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Cliente</label>
+                    <select id="cliente">
+                        <option value="">Seleccionar cliente</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Acciones</h3>
+                <div class="actions">
+                    <button onclick="guardarRemito()">Guardar Remito</button>
+                    <button onclick="nuevoRemito()">Nuevo Remito</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Pedido Actual <span class="badge" id="contador">0</span></h3>
+                <div id="pedidoActual">Sin productos seleccionados.</div>
+            </div>
+
+            <div class="card">
+                <div class="product-section">
+                    <h3 class="section-title">Productos Normales</h3>
+                    <div id="productosNormales"></div>
+                </div>
+                <div class="product-section">
+                    <h3 class="section-title">Ofertas</h3>
+                    <div id="productosOfertas"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Observaciones</h3>
+                <textarea id="obs" rows="4"></textarea>
+            </div>
+
+            
+        </div>
+
+        <!-- Sección de Clientes -->
+        <div id="pestana-clientes" class="pestana">
+            <div class="card">
+                <h3>Gestión de Clientes</h3>
+                <div class="actions">
+                    <button onclick="abrirModalCliente()">Agregar Cliente</button>
+                </div>
+                <div class="search-box">
+                    <input id="buscarCliente" placeholder="🔍 Buscar cliente..." oninput="filtrarClientes()">
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Zona</th>
+                            <th>Teléfono</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaClientes"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sección de Vendedores -->
+        <div id="pestana-vendedores" class="pestana">
+            <div class="card">
+                <h3>Gestión de Vendedores</h3>
+                <div class="actions">
+                    <button onclick="abrirModalVendedor()">Agregar Vendedor</button>
+                </div>
+                <div class="search-box">
+                    <input id="buscarVendedor" placeholder="🔍 Buscar vendedor..." oninput="filtrarVendedores()">
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Zona</th>
+                            <th>Teléfono</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaVendedores"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sección de Productos -->
+        <div id="pestana-productos" class="pestana">
+            <div class="card">
+                <h3>Gestión de Productos</h3>
+                <div class="actions">
+                    <button onclick="abrirModalProducto('normales')">Agregar Producto Normal</button>
+                    <button onclick="abrirModalProducto('ofertas')">Agregar Oferta</button>
+                </div>
+                <div class="product-section">
+                    <h3 class="section-title">Productos Normales</h3>
+                    <div class="search-box">
+                        <input id="buscarProductoNormal" placeholder="🔍 Buscar producto normal..." oninput="filtrarProductosGestion('normales')">
+                    </div>
+                    <div id="listaProductosNormalesContainer"></div>
+                </div>
+                <div class="product-section">
+                    <h3 class="section-title">Ofertas</h3>
+                    <div class="search-box">
+                        <input id="buscarProductoOferta" placeholder="🔍 Buscar oferta..." oninput="filtrarProductosGestion('ofertas')">
+                    </div>
+                    <div id="listaProductosOfertasContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Historial -->
+        <div id="pestana-historial" class="pestana">
+            <div class="card">
+                <h3>Historial de Remitos</h3>
+                <div class="search-box">
+                    <input id="buscarHistorial" placeholder="🔍 Buscar en historial..." oninput="filtrarHistorial()">
+                </div>
+                <div id="listaHistorial"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Clientes -->
+    <div id="clienteModal" class="modal">
+        <div class="modal-content">
+            <h2 id="tituloClienteModal">Agregar Cliente</h2>
+            <input id="clienteId" type="hidden">
+            <div>
+                <label>Nombre</label>
+                <input id="clienteNombre" placeholder="Nombre del cliente">
+            </div>
+            <div>
+                <label>Zona</label>
+                <input id="clienteZona" placeholder="Zona del cliente">
+            </div>
+            <div>
+                <label>Teléfono</label>
+                <input id="clienteTelefono" placeholder="Teléfono del cliente">
+            </div>
+            <div class="actions">
+                <button onclick="guardarCliente()">Guardar</button>
+                <button onclick="cerrarModalCliente()" class="delete">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Vendedores -->
+    <div id="vendedorModal" class="modal">
+        <div class="modal-content">
+            <h2 id="tituloVendedorModal">Agregar Vendedor</h2>
+            <input id="vendedorId" type="hidden">
+            <div>
+                <label>Nombre</label>
+                <input id="vendedorNombre" placeholder="Nombre del vendedor">
+            </div>
+            <div>
+                <label>Zonas (separadas por coma)</label>
+                <input id="vendedorZona" placeholder="Ej: Norte, Sur, Centro">
+            </div>
+            <div>
+                <label>Teléfono</label>
+                <input id="vendedorTelefono" placeholder="Teléfono del vendedor">
+            </div>
+            <div class="actions">
+                <button onclick="guardarVendedor()">Guardar</button>
+                <button onclick="cerrarModalVendedor()" class="delete">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Productos -->
+    <div id="productoModal" class="modal">
+        <div class="modal-content">
+            <h2 id="tituloProductoModal">Agregar Producto</h2>
+            <input id="productoId" type="hidden">
+            <input id="productoTipo" type="hidden">
+            <div>
+                <label>Código</label>
+                <input id="productoCodigo" placeholder="Ej: 13">
+            </div>
+            <div>
+                <label>Nombre</label>
+                <input id="productoNombre" placeholder="Ej: ALBONDIGAS DE CARNE x KG">
+            </div>
+            <div>
+                <label>Precio (informativo)</label>
+                <input id="productoPrecio" type="number" step="0.01" placeholder="Ej: 1200">
+            </div>
+            <div class="actions">
+                <button onclick="guardarProducto()">Guardar</button>
+                <button onclick="cerrarModalProducto()" class="delete">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Resumen de Jornada -->
+    <div id="resumenModal" class="modal">
+        <div class="modal-content">
+            <h2>Resumen de Jornada</h2>
+            <div class="card grid" style="margin-bottom: 10px;">
+                <div>
+                    <label>Filtrar por Vendedor</label>
+                    <select id="filtroResumenVendedor" onchange="actualizarResumenJornada()">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Filtrar por Zona</label>
+                    <select id="filtroResumenZona" onchange="actualizarResumenJornada()">
+                        <option value="">Todas</option>
+                    </select>
+                </div>
+            </div>
+            <div id="resumenJornada"></div>
+            <div class="actions">
+                <button onclick="generarPDF()" class="success">Generar PDF de ventas de clientes del día</button>
+                <button onclick="generarPDFResumenProductos()" class="success">Generar PDF de resumen por productos</button>
+                <button onclick="cerrarResumenModal()" class="delete">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Confirmación -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h2 id="confirmTitle">Confirmar Acción</h2>
+            <p id="confirmMessage"></p>
+            <div class="actions">
+                <button onclick="confirmarAccion()">Sí</button>
+                <button onclick="cancelarAccion()" class="delete">No</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Librería para PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+    <script>
+        // Datos iniciales de productos (basados en la imagen)
+        const productosIniciales = {
+            normales: [
+                { id: 1, codigo: "13", nombre: "ALBONDIGAS DE CARNE x KG", precio: 16800 },
+                { id: 2, codigo: "14", nombre: "ALBONDIGAS DE POLLO x KG", precio: 10280 },
+                { id: 3, codigo: "18", nombre: "CHORIZO PARRILLERO GRANALIER x KG", precio: 7180 },
+                { id: 4, codigo: "6", nombre: "EMPANADAS ARABES x 6 unid", precio: 4900 },
+                { id: 5, codigo: "4", nombre: "EMPANADAS DE CARNE x 6 unid", precio: 4410 },
+                { id: 6, codigo: "7", nombre: "EMPANADAS JAMON/QUESO x 6 unid", precio: 4410 },
+                { id: 7, codigo: "5", nombre: "EMPANADAS DE POLLO x 6 unid", precio: 4410 },
+                { id: 8, codigo: "95", nombre: "FIAMBRE COCIDO DE CERDO pieza el kg", precio: 6770 },
+                { id: 9, codigo: "3", nombre: "HAMB. CARNE", precio: 4500 },
+                { id: 10, codigo: "12", nombre: "MEDALLON POLLO", precio: 2690 },
+                { id: 11, codigo: "2", nombre: "MILA POLLO x 3 KG EL KG", precio: 7500 },
+                { id: 12, codigo: "1", nombre: "MILA VACUNA x 3 KG el KG", precio: 12790 },
+                { id: 13, codigo: "16", nombre: "MILA CERDO x KG", precio: 8190 },
+                { id: 14, codigo: "10", nombre: "MOLIDA POLLO", precio: 10500 },
+                { id: 15, codigo: "19", nombre: "MORCILLA GRANALIER x KG", precio: 5250 },
+                { id: 16, codigo: "94", nombre: "MORTA BOCHA 254 pieza x KG", precio: 6150 },
+                { id: 17, codigo: "96", nombre: "MORTA CIL Don Alejandro pieza x KG", precio: 4650 },
+                { id: 18, codigo: "11", nombre: "NUGGETS POLLO x KG", precio: 9290 },
+                { id: 19, codigo: "15", nombre: "PIZZA PRELISTA", precio: 4900 },
+                { id: 20, codigo: "91", nombre: "QUESO BARRA pieza x KG", precio: 11550 },
+                { id: 21, codigo: "17", nombre: "QUESO CREMOSO pieza x KG", precio: 10500 },
+                { id: 22, codigo: "20", nombre: "SALCHICHA GRANALIER x 6 - 20pq", precio: 25300 },
+                { id: 23, codigo: "9", nombre: "VARENIKES x DOC", precio: 3675 }
+            ],
+            ofertas: [
+                { id: 24, codigo: "O13", nombre: "ALBONDIGAS POLLO x 5 KG", precio: 15850 },
+                { id: 25, codigo: "OF2", nombre: "MILA POLLO x 5 CAJAS x KG", precio: 6300 },
+                { id: 26, codigo: "O1", nombre: "MILA CARNE x 3 CAJAS x KG", precio: 11190 },
+                { id: 27, codigo: "O2", nombre: "MILA POLLO x 3 CAJAS x KG", precio: 6950 },
+                { id: 28, codigo: "O11", nombre: "NUGGETS x 5 KG por KG", precio: 8230 }
+            ]
+        };
+
+        // Cargar datos iniciales
+        let clientes = JSON.parse(localStorage.getItem('clientes')) || [];
+        let vendedores = JSON.parse(localStorage.getItem('vendedores')) || [];
+        let productos = JSON.parse(localStorage.getItem('productos')) || { normales: [], ofertas: [] };
+        let remitos = JSON.parse(localStorage.getItem('remitos')) || [];
+        let remitoActual = { id: null, cliente: '', vendedor: '', zona: '', fecha: '', productos: [], obs: '' };
+
+        // Inicializar productos con los datos precargados si no existen
+        if (productos.normales.length === 0 && productos.ofertas.length === 0) {
+            productos = JSON.parse(JSON.stringify(productosIniciales));
+            localStorage.setItem('productos', JSON.stringify(productos));
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarProductosDisponibles();
+            cargarProductosGestion();
+            cargarSelects();
+            cargarClientes();
+            cargarVendedores();
+            cargarHistorial();
+            nuevoRemito();
+        });
+
+        // Cambiar pestaña
+        function cambiarPestana(pestana) {
+            document.querySelectorAll('.pestana').forEach(p => p.classList.remove('active'));
+            document.getElementById(`pestana-${pestana}`).classList.add('active');
+        }
+
+        // Cargar selects de clientes y vendedores
+        function cargarSelects() {
+            const vendedorSelect = document.getElementById('vendedor');
+            vendedorSelect.innerHTML = '<option value="">Seleccionar vendedor</option>';
+            vendedores.forEach(vendedor => {
+                vendedorSelect.innerHTML += `<option value="${vendedor.id}">${vendedor.nombre}</option>`;
+            });
+
+            // Limpiar zona y cliente al cargar los selects iniciales
+            document.getElementById('zonaVendedor').innerHTML = '<option value="">Seleccionar zona</option>';
+            document.getElementById('cliente').innerHTML = '<option value="">Seleccionar cliente</option>';
+        }
+
+        // Función para actualizar las zonas disponibles del vendedor seleccionado
+        function actualizarZonasVendedor() {
+            const vendedorId = document.getElementById('vendedor').value;
+            const zonaSelect = document.getElementById('zonaVendedor');
+            const clienteSelect = document.getElementById('cliente');
+
+            zonaSelect.innerHTML = '<option value="">Seleccionar zona</option>';
+            clienteSelect.innerHTML = '<option value="">Seleccionar cliente</option>';
+
+            if (!vendedorId) return;
+
+            const vendedor = vendedores.find(v => v.id == vendedorId);
+            if (vendedor && vendedor.zona) {
+                // Soporta múltiples zonas separadas por coma
+                const zonas = vendedor.zona.split(',').map(z => z.trim()).filter(z => z !== "");
+                zonas.forEach(z => {
+                    zonaSelect.innerHTML += `<option value="${z}">${z}</option>`;
+                });
+            }
+        }
+
+        // Función para filtrar clientes según la zona seleccionada
+        function actualizarClientesPorZona() {
+            const zonaSeleccionada = document.getElementById('zonaVendedor').value;
+            const clienteSelect = document.getElementById('cliente');
+
+            clienteSelect.innerHTML = '<option value="">Seleccionar cliente</option>';
+
+            if (!zonaSeleccionada) return;
+
+            const clientesFiltrados = clientes.filter(c =>
+                c.zona && c.zona.trim().toLowerCase() === zonaSeleccionada.trim().toLowerCase()
+            );
+
+            clientesFiltrados.forEach(cliente => {
+                clienteSelect.innerHTML += `<option value="${cliente.id}">${cliente.nombre}</option>`;
+            });
+        }
+
+        // Cargar productos disponibles para remitos
+        function cargarProductosDisponibles() {
+            const containerNormales = document.getElementById('productosNormales');
+            const containerOfertas = document.getElementById('productosOfertas');
+
+            containerNormales.innerHTML = productos.normales.map(p => `
+                <div class="product-add">
+                    <span><strong>${p.codigo}</strong> - ${p.nombre} <strong>($${p.precio || '0.00'})</strong></span>
+                    <div class="input-group">
+                        <input type="number" id="cantidad-${p.id}-normal" placeholder="Cant" value="" min="0.01" step="0.01">
+                        <button onclick="agregarProductoAlRemito(${p.id}, 'normal')" style="padding: 4px 8px;">Agregar</button>
+                    </div>
+                </div>
+            `).join('');
+
+            containerOfertas.innerHTML = productos.ofertas.map(p => `
+                <div class="product-add">
+                    <span><strong>${p.codigo}</strong> - ${p.nombre} <strong>($${p.precio || '0.00'})</strong></span>
+                    <div class="input-group">
+                        <input type="number" id="cantidad-${p.id}-oferta" placeholder="Cant" value="" min="0.01" step="0.01">
+                        <button onclick="agregarProductoAlRemito(${p.id}, 'oferta')" style="padding: 4px 8px;">Agregar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Función corregida para agregar productos al remito
+        function agregarProductoAlRemito(id, tipo) {
+            const clave = tipo === 'normal' ? 'normales' : 'ofertas';
+            const producto = productos[clave].find(p => p.id === id);
+            if (!producto) {
+                console.error('Producto no encontrado:', id, tipo);
+                return;
+            }
+
+            const cantidadInput = document.getElementById(`cantidad-${id}-${tipo}`);
+            if (!cantidadInput) {
+                console.error('Input de cantidad no encontrado:', `cantidad-${id}-${tipo}`);
+                return;
+            }
+
+            const cantidad = parseFloat(cantidadInput.value) || 0;
+
+            if (cantidad <= 0) {
+                alert('La cantidad debe ser mayor a 0.');
+                return;
+            }
+
+            // Verificar si el producto ya está en el remito
+            const existe = remitoActual.productos.find(p => p.id === id && p.tipo === tipo);
+            if (existe) {
+                existe.cantidad += cantidad;
+            } else {
+                remitoActual.productos.push({ ...producto, cantidad, kilos: 0, tipo });
+            }
+
+            // Limpiar el input de cantidad
+            cantidadInput.value = '';
+
+            // Actualizar la vista del pedido actual
+            actualizarPedidoActual();
+            actualizarContador();
+        }
+
+        // Filtrar productos
+        function filtrarProductos() {
+            const busqueda = document.getElementById('buscar').value.toLowerCase();
+            const allProducts = document.querySelectorAll('#productosNormales .product-add, #productosOfertas .product-add');
+            allProducts.forEach(el => {
+                const text = el.textContent.toLowerCase();
+                el.style.display = text.includes(busqueda) ? 'flex' : 'none';
+            });
+        }
+
+        // Actualizar pedido actual
+        function actualizarPedidoActual() {
+            const container = document.getElementById('pedidoActual');
+            if (remitoActual.productos.length === 0) {
+                container.innerHTML = 'Sin productos seleccionados.';
+                return;
+            }
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Precio</th>
+                            <th>Cantidad</th>
+                            <th>Kilos</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${remitoActual.productos.map((p, index) => `
+                            <tr>
+                                <td>${p.codigo}</td>
+                                <td>${p.nombre}</td>
+                                <td>$${p.precio || '0.00'}</td>
+                                <td>
+                                    <input type="number" value="${p.cantidad || 0}" 
+                                           oninput="actualizarCantidadEnRemito(${index}, this.value)" 
+                                           style="width: 60px; text-align: center;" min="0">
+                                </td>
+                                <td>
+                                    <input type="number" value="${p.kilos || 0}" 
+                                           oninput="actualizarKilosEnRemito(${index}, this.value)" 
+                                           style="width: 60px; text-align: center;" min="0" step="0.01">
+                                </td>
+                                <td><button onclick="eliminarProductoDelRemito(${index})" class="delete" style="padding: 4px 8px;">X</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Actualizar cantidad en el remito
+        function actualizarCantidadEnRemito(index, cantidad) {
+            if (remitoActual.productos[index]) {
+                remitoActual.productos[index].cantidad = parseFloat(cantidad) || 0;
+            }
+        }
+
+        // Actualizar kilos en el remito
+        function actualizarKilosEnRemito(index, kilos) {
+            if (remitoActual.productos[index]) {
+                remitoActual.productos[index].kilos = parseFloat(kilos) || 0;
+            }
+        }
+
+        // Eliminar producto del remito
+        function eliminarProductoDelRemito(index) {
+            remitoActual.productos.splice(index, 1);
+            actualizarPedidoActual();
+            actualizarContador();
+        }
+
+        // Actualizar contador
+        function actualizarContador() {
+            const total = remitoActual.productos.reduce((sum, p) => sum + (p.cantidad || 0), 0);
+            document.getElementById('contador').textContent = total;
+        }
+
+        // Guardar remito
+        function guardarRemito() {
+            // Auto-agregar cualquier producto con cantidad cargada pero no agregado aún
+            [['normales', 'normal'], ['ofertas', 'oferta']].forEach(([clave, tipo]) => {
+                (productos[clave] || []).forEach(p => {
+                    const input = document.getElementById(`cantidad-${p.id}-${tipo}`);
+                    if (!input) return;
+                    const raw = input.value.trim();
+                    const cantidad = parseFloat(raw);
+                    if (!raw || isNaN(cantidad) || cantidad <= 0) return;
+                    const existe = remitoActual.productos.find(x => x.id === p.id && x.tipo === tipo);
+                    if (existe) {
+                        existe.cantidad += cantidad;
+                    } else {
+                        remitoActual.productos.push({ ...p, cantidad, kilos: 0, tipo });
+                    }
+                    input.value = '';
+                });
+            });
+            actualizarPedidoActual();
+            actualizarContador();
+
+            const clienteId = document.getElementById('cliente').value;
+            const vendedorId = document.getElementById('vendedor').value;
+            const zonaVendedor = document.getElementById('zonaVendedor').value;
+            const fecha = new Date().toISOString().split('T')[0];
+            const obs = document.getElementById('obs').value;
+
+            if (!clienteId || !vendedorId || !zonaVendedor) {
+                alert('Debe seleccionar vendedor, zona y cliente.');
+                return;
+            }
+
+            const cliente = clientes.find(c => c.id == clienteId);
+            const vendedor = vendedores.find(v => v.id == vendedorId);
+
+            if (!cliente || !vendedor) {
+                alert('Cliente o vendedor no encontrado.');
+                return;
+            }
+
+            if (remitoActual.productos.length === 0) {
+                alert('Debe agregar al menos un producto al remito.');
+                return;
+            }
+
+            remitoActual.cliente = cliente.nombre;
+            remitoActual.vendedor = vendedor.nombre;
+            remitoActual.zona = zonaVendedor;
+            remitoActual.fecha = fecha;
+            remitoActual.obs = obs;
+
+            if (remitoActual.id === null) {
+                remitoActual.id = Date.now();
+                remitos.push(JSON.parse(JSON.stringify(remitoActual)));
+            } else {
+                const index = remitos.findIndex(r => r.id === remitoActual.id);
+                if (index !== -1) {
+                    remitos[index] = JSON.parse(JSON.stringify(remitoActual));
+                }
+            }
+
+            localStorage.setItem('remitos', JSON.stringify(remitos));
+            alert('Remito guardado con éxito.');
+            nuevoRemito();
+            cargarHistorial();
+        }
+
+        // Nuevo remito
+        function nuevoRemito() {
+            remitoActual = { id: null, cliente: '', vendedor: '', zona: '', fecha: '', productos: [], obs: '' };
+            document.getElementById('cliente').value = '';
+            document.getElementById('vendedor').value = '';
+            document.getElementById('zonaVendedor').value = '';
+            document.getElementById('obs').value = '';
+            document.getElementById('remitoNumero').textContent = 'Nuevo';
+            actualizarPedidoActual();
+            actualizarContador();
+            cargarProductosDisponibles();
+
+            // Limpiar cascada de selects
+            actualizarZonasVendedor();
+        }
+
+        // Cargar historial
+        function cargarHistorial() {
+            const container = document.getElementById('listaHistorial');
+            if (remitos.length === 0) {
+                container.innerHTML = '<p>No hay remitos guardados.</p>';
+                return;
+            }
+            container.innerHTML = remitos.map(r => `
+                <div class="history-item">
+                    <div class="info" onclick="cargarRemito(${r.id})">
+                        <strong>Remito #${r.id}</strong> - ${r.cliente} (${r.fecha}) - Vendedor: ${r.vendedor}
+                    </div>
+                    <div class="history-actions">
+                        <button onclick="cargarRemito(${r.id})">Editar</button>
+                        <button onclick="eliminarRemito(${r.id})" class="delete">Borrar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Filtrar historial
+        function filtrarHistorial() {
+            const busqueda = document.getElementById('buscarHistorial').value.toLowerCase();
+            const items = document.querySelectorAll('#listaHistorial .history-item');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(busqueda) ? 'flex' : 'none';
+            });
+        }
+
+        // Eliminar remito del historial
+        function eliminarRemito(id) {
+            document.getElementById('confirmTitle').textContent = 'Eliminar Remito';
+            document.getElementById('confirmMessage').textContent = '¿Estás seguro de que deseas eliminar este remito del historial?';
+            document.getElementById('confirmModal').style.display = 'block';
+            window.accionConfirmada = () => {
+                remitos = remitos.filter(r => r.id !== id);
+                localStorage.setItem('remitos', JSON.stringify(remitos));
+                cargarHistorial();
+                alert('Remito eliminado con éxito.');
+                cancelarAccion();
+            };
+        }
+
+        // Cargar remito desde historial
+        function cargarRemito(id) {
+            const remito = remitos.find(r => r.id === id);
+            if (!remito) return;
+
+            remitoActual = JSON.parse(JSON.stringify(remito));
+
+            // 1. Vendedor
+            document.getElementById('vendedor').value = vendedores.find(v => v.nombre === remito.vendedor)?.id || '';
+
+            // 2. Disparar actualización de zonas y seleccionar la correcta
+            actualizarZonasVendedor();
+            document.getElementById('zonaVendedor').value = remito.zona || '';
+
+            // 3. Disparar actualización de clientes por esa zona y seleccionar el correcto
+            actualizarClientesPorZona();
+            document.getElementById('cliente').value = clientes.find(c => c.nombre === remito.cliente)?.id || '';
+
+            document.getElementById('obs').value = remito.obs || '';
+            document.getElementById('remitoNumero').textContent = `Remito #${remito.id}`;
+            actualizarPedidoActual();
+            actualizarContador();
+            cambiarPestana('remitos');
+            cargarProductosDisponibles();
+        }
+
+        // Cargar productos para gestión
+        function cargarProductosGestion() {
+            const containerNormales = document.getElementById('listaProductosNormalesContainer');
+            const containerOfertas = document.getElementById('listaProductosOfertasContainer');
+
+            containerNormales.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Precio</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaProductosNormales">
+                        ${productos.normales.map(p => `
+                            <tr>
+                                <td>${p.codigo}</td>
+                                <td>${p.nombre}</td>
+                                <td>$${p.precio || '0.00'}</td>
+                                <td>
+                                    <button onclick="editarProducto(${p.id}, 'normales')" style="padding: 4px 8px;">Editar</button>
+                                    <button onclick="eliminarProducto(${p.id}, 'normales')" class="delete" style="padding: 4px 8px;">Eliminar</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            containerOfertas.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Precio</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaProductosOfertas">
+                        ${productos.ofertas.map(p => `
+                            <tr>
+                                <td>${p.codigo}</td>
+                                <td>${p.nombre}</td>
+                                <td>$${p.precio || '0.00'}</td>
+                                <td>
+                                    <button onclick="editarProducto(${p.id}, 'ofertas')" style="padding: 4px 8px;">Editar</button>
+                                    <button onclick="eliminarProducto(${p.id}, 'ofertas')" class="delete" style="padding: 4px 8px;">Eliminar</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Filtrar productos en gestión
+        function filtrarProductosGestion(tipo) {
+            const busqueda = document.getElementById(`buscarProducto${tipo === 'normales' ? 'Normal' : 'Oferta'}`).value.toLowerCase();
+            const tbodyId = tipo === 'normales' ? 'listaProductosNormales' : 'listaProductosOfertas';
+            const rows = document.querySelectorAll(`#${tbodyId} tr`);
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(busqueda) ? '' : 'none';
+            });
+        }
+
+        // Cerrar jornada
+        function cerrarJornada() {
+            const hoy = new Date().toISOString().split('T')[0];
+            const remitosHoy = remitos.filter(r => r.fecha === hoy);
+
+            if (remitosHoy.length === 0) {
+                alert('No hay remitos para hoy.');
+                return;
+            }
+
+            // Poblar filtros
+            const vendedoresHoy = [...new Set(remitosHoy.map(r => r.vendedor))];
+            const zonasHoy = [...new Set(remitosHoy.map(r => r.zona))];
+
+            const selVendedor = document.getElementById('filtroResumenVendedor');
+            const selZona = document.getElementById('filtroResumenZona');
+
+            selVendedor.innerHTML = '<option value="">Todos</option>' + vendedoresHoy.map(v => `<option value="${v}">${v}</option>`).join('');
+            selZona.innerHTML = '<option value="">Todas</option>' + zonasHoy.map(z => `<option value="${z}">${z}</option>`).join('');
+
+            actualizarResumenJornada();
+            document.getElementById('resumenModal').style.display = 'block';
+        }
+
+        // Función para actualizar la tabla del resumen según los filtros
+        function actualizarResumenJornada() {
+            const hoy = new Date().toISOString().split('T')[0];
+            const vendedorFiltro = document.getElementById('filtroResumenVendedor').value;
+            const zonaFiltro = document.getElementById('filtroResumenZona').value;
+
+            let remitosFiltrados = remitos.filter(r => r.fecha === hoy);
+            if (vendedorFiltro) remitosFiltrados = remitosFiltrados.filter(r => r.vendedor === vendedorFiltro);
+            if (zonaFiltro) remitosFiltrados = remitosFiltrados.filter(r => r.zona === zonaFiltro);
+
+            // Calcular resumen por producto
+            const resumenProductos = {};
+            remitosFiltrados.forEach(r => {
+                r.productos.forEach(p => {
+                    if (!resumenProductos[p.codigo]) {
+                        resumenProductos[p.codigo] = { nombre: p.nombre, cantidad: 0, kilos: 0 };
+                    }
+                    resumenProductos[p.codigo].cantidad += p.cantidad || 0;
+                    resumenProductos[p.codigo].kilos += p.kilos || 0;
+                });
+            });
+
+            const resumenContainer = document.getElementById('resumenJornada');
+            resumenContainer.innerHTML = `
+                <h3>Remitos filtrados: ${remitosFiltrados.length}</h3>
+                <h4>Resumen por Producto:</h4>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Cantidad Total</th>
+                            <th>Kilos Totales</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Object.entries(resumenProductos).length > 0 ?
+                            Object.entries(resumenProductos).map(([codigo, data]) => `
+                                <tr>
+                                    <td>${codigo}</td>
+                                    <td>${data.nombre}</td>
+                                    <td>${data.cantidad}</td>
+                                    <td>${data.kilos.toFixed(2)}</td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="4">No hay productos en la selección.</td></tr>'
+                        }
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Cerrar modal de resumen
+        function cerrarResumenModal() {
+            document.getElementById('resumenModal').style.display = 'none';
+        }
+
+        // Generar PDF de ventas de clientes del día
+        async function generarPDF() {
+            const hoy = new Date().toISOString().split('T')[0];
+            const vendedorFiltro = document.getElementById('filtroResumenVendedor').value;
+            const zonaFiltro = document.getElementById('filtroResumenZona').value;
+
+            let remitosFiltrados = remitos.filter(r => r.fecha === hoy);
+            if (vendedorFiltro) remitosFiltrados = remitosFiltrados.filter(r => r.vendedor === vendedorFiltro);
+            if (zonaFiltro) remitosFiltrados = remitosFiltrados.filter(r => r.zona === zonaFiltro);
+
+            if (remitosFiltrados.length === 0) {
+                alert('No hay remitos para la selección actual.');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+            // Calcular resumen por producto
+            const resumenProductos = {};
+            remitosFiltrados.forEach(r => {
+                r.productos.forEach(p => {
+                    if (!resumenProductos[p.codigo]) {
+                        resumenProductos[p.codigo] = { nombre: p.nombre, cantidad: 0, kilos: 0 };
+                    }
+                    resumenProductos[p.codigo].cantidad += p.cantidad || 0;
+                    resumenProductos[p.codigo].kilos += p.kilos || 0;
+                });
+            });
+
+            // Agregar remitos al PDF
+            let y = 20;
+            let remitosEnPagina = 0;
+            let paginaActual = 1;
+
+            remitosFiltrados.forEach((remito, index) => {
+                if (remitosEnPagina === 0) {
+                    if (index > 0) {
+                        doc.addPage();
+                        y = 20;
+                        paginaActual++;
+                    }
+                    doc.setFontSize(16);
+                    doc.text(`NÁPOLES CONGELADOS - Página ${paginaActual}`, 105, 10, { align: 'center' });
+                }
+
+                // Encabezado del remito (ahora Factura)
+                doc.setFontSize(12);
+                doc.text(`Factura: ________________`, 20, y);
+                y += 6;
+                doc.setFontSize(10);
+                doc.text(`[ ] PAGADO    [ ] CTA CTE`, 20, y);
+                y += 6;
+                doc.text(`Fecha: ${remito.fecha}    Vendedor: ${remito.vendedor}`, 20, y);
+                y += 6;
+                doc.text(`Cliente: ${remito.cliente}    Zona: ${remito.zona}`, 20, y);
+                y += 4;
+
+                // Tabla de productos
+                doc.setFontSize(10);
+                const headers = [['Código', 'Producto', 'Precio', 'Cantidad', 'Kilos']];
+                const data = remito.productos.map(p => [
+                    p.codigo,
+                    p.nombre,
+                    `$${p.precio || '0.00'}`,
+                    p.cantidad || 0,
+                    (p.kilos && p.kilos > 0) ? p.kilos.toFixed(2) : ''
+                ]);
+
+                doc.autoTable({
+                    head: headers,
+                    body: data,
+                    startY: y,
+                    margin: { left: 20 },
+                    styles: { fontSize: 8, cellPadding: 1 },
+                    headStyles: { fillColor: [40, 50, 80], fontStyle: 'bold' }
+                });
+
+                y = doc.lastAutoTable.finalY + 6;
+                doc.setFontSize(10);
+                doc.text(`Observaciones: ____________________________________________________`, 20, y);
+                y += 12;
+
+                remitosEnPagina++;
+
+                if (remitosEnPagina === 3 || index === remitosFiltrados.length - 1) {
+                    remitosEnPagina = 0;
+                }
+            });
+
+            // Agregar resumen por producto en una nueva página
+            doc.addPage();
+            doc.setFontSize(16);
+            doc.text('RESUMEN DE VENTAS POR PRODUCTO', 105, 10, { align: 'center' });
+            doc.setFontSize(10);
+            const filtroTexto = (vendedorFiltro ? ` Vendedor: ${vendedorFiltro}` : "") + (zonaFiltro ? ` Zona: ${zonaFiltro}` : "");
+            doc.text(`Fecha: ${hoy}${filtroTexto}`, 20, 20);
+
+            const resumenHeaders = [['Código', 'Producto', 'Cantidad Total', 'Kilos Totales']];
+            const resumenData = Object.entries(resumenProductos).map(([codigo, data]) => [
+                codigo,
+                data.nombre,
+                data.cantidad,
+                data.kilos.toFixed(2)
+            ]);
+
+            doc.autoTable({
+                head: resumenHeaders,
+                body: resumenData,
+                startY: 30,
+                margin: { left: 20 },
+                styles: { fontSize: 8, cellPadding: 1 },
+                headStyles: { fillColor: [40, 50, 80], fontStyle: 'bold' }
+            });
+
+            // Guardar PDF
+            const fileName = `Ventas_Napoles_${hoy}${vendedorFiltro ? "_" + vendedorFiltro : ""}${zonaFiltro ? "_" + zonaFiltro : ""}.pdf`;
+            if (window.Android && window.Android.savePdf) {
+                const pdfBase64 = doc.output('datauristring').split(',')[1];
+                window.Android.savePdf(pdfBase64, fileName);
+            } else {
+                doc.save(fileName);
+            }
+            cerrarResumenModal();
+        }
+
+        // Generar PDF del resumen por productos (sin columna de kilos)
+        async function generarPDFResumenProductos() {
+            const hoy = new Date().toISOString().split('T')[0];
+            const vendedorFiltro = document.getElementById('filtroResumenVendedor').value;
+            const zonaFiltro = document.getElementById('filtroResumenZona').value;
+
+            let remitosFiltrados = remitos.filter(r => r.fecha === hoy);
+            if (vendedorFiltro) remitosFiltrados = remitosFiltrados.filter(r => r.vendedor === vendedorFiltro);
+            if (zonaFiltro) remitosFiltrados = remitosFiltrados.filter(r => r.zona === zonaFiltro);
+
+            if (remitosFiltrados.length === 0) {
+                alert('No hay remitos para la selección actual.');
+                return;
+            }
+
+            // Calcular resumen por producto
+            const resumenProductos = {};
+            remitosFiltrados.forEach(r => {
+                r.productos.forEach(p => {
+                    if (!resumenProductos[p.codigo]) {
+                        resumenProductos[p.codigo] = { nombre: p.nombre, cantidad: 0, kilos: 0 };
+                    }
+                    resumenProductos[p.codigo].cantidad += p.cantidad || 0;
+                    resumenProductos[p.codigo].kilos += p.kilos || 0;
+                });
+            });
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+            doc.setFontSize(16);
+            doc.text('NÁPOLES CONGELADOS', 105, 15, { align: 'center' });
+            doc.setFontSize(13);
+            doc.text('Resumen por Producto', 105, 23, { align: 'center' });
+            doc.setFontSize(10);
+            const filtroTexto = (vendedorFiltro ? ` Vendedor: ${vendedorFiltro}` : "") + (zonaFiltro ? ` Zona: ${zonaFiltro}` : "");
+            doc.text(`Fecha: ${hoy}${filtroTexto}`, 105, 31, { align: 'center' });
+
+            const resumenHeaders = [['Código', 'Producto', 'Cantidad Total']];
+            const resumenData = Object.entries(resumenProductos).map(([codigo, data]) => [
+                codigo,
+                data.nombre,
+                data.cantidad
+            ]);
+
+            doc.autoTable({
+                head: resumenHeaders,
+                body: resumenData,
+                startY: 40,
+                margin: { left: 20 },
+                styles: { fontSize: 10, cellPadding: 2 },
+                headStyles: { fillColor: [31, 78, 121], fontStyle: 'bold' }
+            });
+
+            const fileName = `Resumen_Productos_Napoles_${hoy}${vendedorFiltro ? "_" + vendedorFiltro : ""}${zonaFiltro ? "_" + zonaFiltro : ""}.pdf`;
+            if (window.Android && window.Android.savePdf) {
+                const pdfBase64 = doc.output('datauristring').split(',')[1];
+                window.Android.savePdf(pdfBase64, fileName);
+            } else {
+                doc.save(fileName);
+            }
+        }
+
+        // CRUD de Clientes
+        function abrirModalCliente() {
+            document.getElementById('tituloClienteModal').textContent = 'Agregar Cliente';
+            document.getElementById('clienteId').value = '';
+            document.getElementById('clienteNombre').value = '';
+            document.getElementById('clienteZona').value = '';
+            document.getElementById('clienteTelefono').value = '';
+            document.getElementById('clienteModal').style.display = 'block';
+        }
+
+        function cerrarModalCliente() {
+            document.getElementById('clienteModal').style.display = 'none';
+        }
+
+        function guardarCliente() {
+            const id = document.getElementById('clienteId').value;
+            const nombre = document.getElementById('clienteNombre').value;
+            const zona = document.getElementById('clienteZona').value;
+            const telefono = document.getElementById('clienteTelefono').value;
+
+            if (!nombre) {
+                alert('El nombre del cliente es obligatorio.');
+                return;
+            }
+
+            const cliente = { id: id ? parseInt(id) : Date.now(), nombre, zona, telefono };
+
+            if (id) {
+                const index = clientes.findIndex(c => c.id == id);
+                if (index !== -1) {
+                    clientes[index] = cliente;
+                }
+            } else {
+                clientes.push(cliente);
+            }
+
+            localStorage.setItem('clientes', JSON.stringify(clientes));
+            cargarClientes();
+            cargarSelects();
+            cerrarModalCliente();
+            alert('Cliente guardado con éxito.');
+        }
+
+        function cargarClientes() {
+            const tbody = document.getElementById('listaClientes');
+            if (clientes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5">No hay clientes registrados.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = clientes.map(c => `
+                <tr>
+                    <td>${c.id}</td>
+                    <td>${c.nombre}</td>
+                    <td>${c.zona || '-'}</td>
+                    <td>${c.telefono || '-'}</td>
+                    <td>
+                        <button onclick="editarCliente(${c.id})" style="padding: 4px 8px;">Editar</button>
+                        <button onclick="eliminarCliente(${c.id})" class="delete" style="padding: 4px 8px;">Eliminar</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function editarCliente(id) {
+            const cliente = clientes.find(c => c.id == id);
+            if (!cliente) return;
+
+            document.getElementById('tituloClienteModal').textContent = 'Editar Cliente';
+            document.getElementById('clienteId').value = cliente.id;
+            document.getElementById('clienteNombre').value = cliente.nombre;
+            document.getElementById('clienteZona').value = cliente.zona || '';
+            document.getElementById('clienteTelefono').value = cliente.telefono || '';
+            document.getElementById('clienteModal').style.display = 'block';
+        }
+
+        function eliminarCliente(id) {
+            document.getElementById('confirmTitle').textContent = 'Eliminar Cliente';
+            document.getElementById('confirmMessage').textContent = '¿Estás seguro de que deseas eliminar este cliente?';
+            document.getElementById('confirmModal').style.display = 'block';
+            window.accionConfirmada = () => {
+                clientes = clientes.filter(c => c.id != id);
+                localStorage.setItem('clientes', JSON.stringify(clientes));
+                cargarClientes();
+                cargarSelects();
+                alert('Cliente eliminado con éxito.');
+                cancelarAccion();
+            };
+        }
+
+        function filtrarClientes() {
+            const busqueda = document.getElementById('buscarCliente').value.toLowerCase();
+            const rows = document.querySelectorAll('#listaClientes tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(busqueda) ? '' : 'none';
+            });
+        }
+
+        // CRUD de Vendedores
+        function abrirModalVendedor() {
+            document.getElementById('tituloVendedorModal').textContent = 'Agregar Vendedor';
+            document.getElementById('vendedorId').value = '';
+            document.getElementById('vendedorNombre').value = '';
+            document.getElementById('vendedorZona').value = '';
+            document.getElementById('vendedorTelefono').value = '';
+            document.getElementById('vendedorModal').style.display = 'block';
+        }
+
+        function cerrarModalVendedor() {
+            document.getElementById('vendedorModal').style.display = 'none';
+        }
+
+        function guardarVendedor() {
+            const id = document.getElementById('vendedorId').value;
+            const nombre = document.getElementById('vendedorNombre').value;
+            const zona = document.getElementById('vendedorZona').value;
+            const telefono = document.getElementById('vendedorTelefono').value;
+
+            if (!nombre) {
+                alert('El nombre del vendedor es obligatorio.');
+                return;
+            }
+
+            const vendedor = { id: id ? parseInt(id) : Date.now(), nombre, zona, telefono };
+
+            if (id) {
+                const index = vendedores.findIndex(v => v.id == id);
+                if (index !== -1) {
+                    vendedores[index] = vendedor;
+                }
+            } else {
+                vendedores.push(vendedor);
+            }
+
+            localStorage.setItem('vendedores', JSON.stringify(vendedores));
+            cargarVendedores();
+            cargarSelects();
+            cerrarModalVendedor();
+            alert('Vendedor guardado con éxito.');
+        }
+
+        function cargarVendedores() {
+            const tbody = document.getElementById('listaVendedores');
+            if (vendedores.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5">No hay vendedores registrados.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = vendedores.map(v => `
+                <tr>
+                    <td>${v.id}</td>
+                    <td>${v.nombre}</td>
+                    <td>${v.zona || '-'}</td>
+                    <td>${v.telefono || '-'}</td>
+                    <td>
+                        <button onclick="editarVendedor(${v.id})" style="padding: 4px 8px;">Editar</button>
+                        <button onclick="eliminarVendedor(${v.id})" class="delete" style="padding: 4px 8px;">Eliminar</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function editarVendedor(id) {
+            const vendedor = vendedores.find(v => v.id == id);
+            if (!vendedor) return;
+
+            document.getElementById('tituloVendedorModal').textContent = 'Editar Vendedor';
+            document.getElementById('vendedorId').value = vendedor.id;
+            document.getElementById('vendedorNombre').value = vendedor.nombre;
+            document.getElementById('vendedorZona').value = vendedor.zona || '';
+            document.getElementById('vendedorTelefono').value = vendedor.telefono || '';
+            document.getElementById('vendedorModal').style.display = 'block';
+        }
+
+        function eliminarVendedor(id) {
+            document.getElementById('confirmTitle').textContent = 'Eliminar Vendedor';
+            document.getElementById('confirmMessage').textContent = '¿Estás seguro de que deseas eliminar este vendedor?';
+            document.getElementById('confirmModal').style.display = 'block';
+            window.accionConfirmada = () => {
+                vendedores = vendedores.filter(v => v.id != id);
+                localStorage.setItem('vendedores', JSON.stringify(vendedores));
+                cargarVendedores();
+                cargarSelects();
+                alert('Vendedor eliminado con éxito.');
+                cancelarAccion();
+            };
+        }
+
+        function filtrarVendedores() {
+            const busqueda = document.getElementById('buscarVendedor').value.toLowerCase();
+            const rows = document.querySelectorAll('#listaVendedores tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(busqueda) ? '' : 'none';
+            });
+        }
+
+        // CRUD de Productos
+        function abrirModalProducto(tipo = 'normales') {
+            document.getElementById('tituloProductoModal').textContent = tipo === 'normales' ? 'Agregar Producto' : 'Agregar Oferta';
+            document.getElementById('productoId').value = '';
+            document.getElementById('productoCodigo').value = '';
+            document.getElementById('productoNombre').value = '';
+            document.getElementById('productoPrecio').value = '';
+            document.getElementById('productoTipo').value = tipo;
+            document.getElementById('productoModal').style.display = 'block';
+        }
+
+        function cerrarModalProducto() {
+            document.getElementById('productoModal').style.display = 'none';
+        }
+
+        function guardarProducto() {
+            const id = document.getElementById('productoId').value;
+            const codigo = document.getElementById('productoCodigo').value;
+            const nombre = document.getElementById('productoNombre').value;
+            const precio = parseFloat(document.getElementById('productoPrecio').value) || 0;
+            const tipo = document.getElementById('productoTipo').value;
+
+            if (!codigo || !nombre) {
+                alert('El código y el nombre son obligatorios.');
+                return;
+            }
+
+            const producto = { id: id ? parseInt(id) : Date.now(), codigo, nombre, precio, tipo };
+
+            if (id) {
+                const index = productos[tipo].findIndex(p => p.id == id);
+                if (index !== -1) {
+                    productos[tipo][index] = producto;
+                }
+            } else {
+                productos[tipo].push(producto);
+            }
+
+            localStorage.setItem('productos', JSON.stringify(productos));
+            cargarProductosDisponibles();
+            cargarProductosGestion();
+            cerrarModalProducto();
+            alert('Producto guardado con éxito.');
+        }
+
+        function editarProducto(id, tipo) {
+            const producto = productos[tipo].find(p => p.id == id);
+            if (!producto) return;
+
+            document.getElementById('tituloProductoModal').textContent = tipo === 'normales' ? 'Editar Producto' : 'Editar Oferta';
+            document.getElementById('productoId').value = producto.id;
+            document.getElementById('productoCodigo').value = producto.codigo;
+            document.getElementById('productoNombre').value = producto.nombre;
+            document.getElementById('productoPrecio').value = producto.precio || 0;
+            document.getElementById('productoTipo').value = tipo;
+            document.getElementById('productoModal').style.display = 'block';
+        }
+
+        function eliminarProducto(id, tipo) {
+            document.getElementById('confirmTitle').textContent = tipo === 'normal' ? 'Eliminar Producto' : 'Eliminar Oferta';
+            document.getElementById('confirmMessage').textContent = `¿Estás seguro de que deseas eliminar este ${tipo === 'normal' ? 'producto' : 'oferta'}?`;
+            document.getElementById('confirmModal').style.display = 'block';
+            window.accionConfirmada = () => {
+                productos[tipo] = productos[tipo].filter(p => p.id != id);
+                localStorage.setItem('productos', JSON.stringify(productos));
+                cargarProductosDisponibles();
+                cargarProductosGestion();
+                alert(`${tipo === 'normal' ? 'Producto' : 'Oferta'} eliminado con éxito.`);
+                cancelarAccion();
+            };
+        }
+
+        // Confirmar acción
+        function confirmarAccion() {
+            if (window.accionConfirmada) {
+                window.accionConfirmada();
+                window.accionConfirmada = null;
+            }
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+
+        // Cancelar acción
+        function cancelarAccion() {
+            window.accionConfirmada = null;
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
