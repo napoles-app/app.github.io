@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nápoles Congelados</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h2>NÁPOLES CONGELADOS</h2>
+        <div>Remito: <span id="remitoNumero">Nuevo</span></div>
+    </header>
+
+    <div class="container">
+        <!-- Pestañas -->
+        <div class="card">
+            <div class="actions">
+                <button onclick="cambiarPestana('visitas')">Visitas</button>
+                <button onclick="cambiarPestana('remitos')">Remitos</button>
+                <button onclick="cambiarPestana('clientes')">Clientes</button>
+                <button onclick="cambiarPestana('vendedores')">Vendedores</button>
+                <button onclick="cambiarPestana('productos')">Productos</button>
+                <button onclick="cambiarPestana('historial')">Historial</button>
+                <button onclick="cerrarJornada()" class="success">Cerrar Jornada</button>
+            </div>
+        </div>
+
+        <!-- Sección de Visitas -->
+        <div id="pestana-visitas" class="pestana active">
+            <div class="card grid">
+                <div>
+                    <label>Inicio de Ruta</label>
+                    <input type="date" id="fechaVisitaInicio" onchange="actualizarClientesVisita()">
+                </div>
+                <div>
+                    <label>Fin de Ruta</label>
+                    <input type="date" id="fechaVisitaFin" onchange="actualizarClientesVisita()">
+                </div>
+                <div>
+                    <label>Vendedor</label>
+                    <select id="vendedorVisita" onchange="actualizarZonasVisita()">
+                        <option value="">Seleccionar vendedor</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Zona</label>
+                    <select id="zonaVisita" onchange="actualizarClientesVisita()">
+                        <option value="">Seleccionar zona</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Control de Visitas (Hoja de Ruta)</h3>
+                <div class="actions" style="margin-bottom: 10px;">
+                    <button onclick="generarPDFVisitas()" class="success">Generar PDF de Visitas</button>
+                    <button onclick="nuevaHojaRuta()" class="delete">Reiniciar / Nueva Ruta</button>
+                </div>
+                <div id="listaVisitas">Seleccione fechas, vendedor y zona para ver clientes.</div>
+            </div>
+        </div>
+
+        <!-- Sección de Remitos -->
+        <div id="pestana-remitos" class="pestana">
+            <div class="card grid">
+                <div>
+                    <label>Vendedor</label>
+                    <select id="vendedor" onchange="actualizarZonasVendedor()">
+                        <option value="">Seleccionar vendedor</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Zona</label>
+                    <select id="zonaVendedor" onchange="actualizarClientesPorZona()">
+                        <option value="">Seleccionar zona</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Cliente</label>
+                    <select id="cliente">
+                        <option value="">Seleccionar cliente</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Observaciones</h3>
+                <div class="actions">
+                    <button onclick="abrirModalObs()">Escribir Observaciones</button>
+                    <span id="previewObs" style="font-size: 0.85em; color: #666; font-style: italic;"></span>
+                </div>
+            </div>
+
+            <div class="card grid" id="seccionFacturacion" style="display: none;">
+                <div>
+                    <label>N° Factura</label>
+                    <input type="text" id="numFactura" placeholder="Ej: 0001-00001234">
+                </div>
+                <div>
+                    <label>Monto Total ($)</label>
+                    <input type="number" id="montoTotal" step="0.01" placeholder="0.00">
+                </div>
+                <div>
+                    <label>Estado</label>
+                    <select id="estadoPago">
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Pagado">Pagado</option>
+                        <option value="Cta Cte">Cta Cte</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Acciones</h3>
+                <div class="actions">
+                    <button onclick="guardarRemito()">Guardar Remito</button>
+                    <button onclick="nuevoRemito()">Nuevo Remito</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Pedido Actual <span class="badge" id="contador">0</span></h3>
+                <div id="pedidoActual">Sin productos seleccionados.</div>
+            </div>
+
+            <div class="card">
+                <div class="product-section">
+                    <h3 class="section-title">Productos Normales</h3>
+                    <div id="productosNormales"></div>
+                </div>
+                <div class="product-section">
+                    <h3 class="section-title">Ofertas</h3>
+                    <div id="productosOfertas"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Clientes -->
+        <div id="pestana-clientes" class="pestana">
+            <div class="card">
+                <h3>Gestión de Clientes</h3>
+                <div class="actions">
+                    <button onclick="abrirModalCliente()">Agregar Cliente</button>
+                    <button onclick="document.getElementById('csvClientes').click()">Importar CSV</button>
+                    <input type="file" id="csvClientes" accept=".csv" style="display: none;" onchange="importarCSVClientes(this)">
+                </div>
+                <p style="font-size: 0.8em; color: #666; margin-top: 5px;">CSV: Nombre, Zona, Teléfono</p>
+                <div class="search-box">
+                    <input id="buscarCliente" placeholder="🔍 Buscar cliente..." oninput="filtrarClientes()">
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Zona</th>
+                            <th>Teléfono</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaClientes"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sección de Vendedores -->
+        <div id="pestana-vendedores" class="pestana">
+            <div class="card">
+                <h3>Gestión de Vendedores</h3>
+                <div class="actions">
+                    <button onclick="abrirModalVendedor()">Agregar Vendedor</button>
+                </div>
+                <div class="search-box">
+                    <input id="buscarVendedor" placeholder="🔍 Buscar vendedor..." oninput="filtrarVendedores()">
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Zona</th>
+                            <th>Teléfono</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaVendedores"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sección de Productos -->
+        <div id="pestana-productos" class="pestana">
+            <div class="card">
+                <h3>Gestión de Productos</h3>
+                <div class="actions">
+                    <button onclick="abrirModalProducto('normales')">Agregar Producto Normal</button>
+                    <button onclick="abrirModalProducto('ofertas')">Agregar Oferta</button>
+                </div>
+                <div class="product-section">
+                    <h3 class="section-title">Productos Normales</h3>
+                    <div class="search-box">
+                        <input id="buscarProductoNormal" placeholder="🔍 Buscar producto normal..." oninput="filtrarProductosGestion('normales')">
+                    </div>
+                    <div id="listaProductosNormalesContainer"></div>
+                </div>
+                <div class="product-section">
+                    <h3 class="section-title">Ofertas</h3>
+                    <div class="search-box">
+                        <input id="buscarProductoOferta" placeholder="🔍 Buscar oferta..." oninput="filtrarProductosGestion('ofertas')">
+                    </div>
+                    <div id="listaProductosOfertasContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Historial -->
+        <div id="pestana-historial" class="pestana">
+            <div class="card">
+                <h3>Historial de Remitos</h3>
+                <div class="grid" style="gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <label>Desde:</label>
+                        <input type="date" id="historialFechaDesde" onchange="filtrarHistorial()">
+                    </div>
+                    <div>
+                        <label>Hasta:</label>
+                        <input type="date" id="historialFechaHasta" onchange="filtrarHistorial()">
+                    </div>
+                    <div>
+                        <label>Estado:</label>
+                        <select id="historialFiltroEstado" onchange="filtrarHistorial()">
+                            <option value="">Todos</option>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Pagado">Pagado</option>
+                            <option value="Cta Cte">Cta Cte</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="search-box">
+                    <input id="buscarHistorial" placeholder="🔍 Buscar por cliente o vendedor..." oninput="filtrarHistorial()">
+                </div>
+                <div class="actions" style="margin-bottom: 10px;">
+                    <button onclick="generarPDFResumenHistorial()" class="success">Generar PDF de Resumen Filtrado</button>
+                </div>
+                <div id="listaHistorial"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    <div id="obsModal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="cerrarModalObs()">X</button>
+            <h2>Escribir Observaciones</h2>
+            <textarea id="obsTextarea" rows="6" placeholder="Escribe aquí las notas..."></textarea>
+            <div class="actions" style="margin-top: 15px;">
+                <button onclick="guardarObs()" class="success">Listo / Guardar</button>
+                <button onclick="cerrarModalObs()" class="delete">Cerrar sin cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="clienteModal" class="modal">
+        <div class="modal-content">
+            <h2 id="tituloClienteModal">Agregar Cliente</h2>
+            <input id="clienteId" type="hidden">
+            <div><label>Nombre</label><input id="clienteNombre"></div>
+            <div><label>Zona</label><input id="clienteZona"></div>
+            <div><label>Teléfono</label><input id="clienteTelefono"></div>
+            <div class="actions">
+                <button onclick="guardarCliente()">Guardar</button>
+                <button onclick="cerrarModalCliente()" class="delete">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="vendedorModal" class="modal">
+        <div class="modal-content">
+            <h2 id="tituloVendedorModal">Agregar Vendedor</h2>
+            <input id="vendedorId" type="hidden">
+            <div><label>Nombre</label><input id="vendedorNombre"></div>
+            <div><label>Zonas (coma)</label><input id="vendedorZona"></div>
+            <div><label>Teléfono</label><input id="vendedorTelefono"></div>
+            <div class="actions">
+                <button onclick="guardarVendedor()">Guardar</button>
+                <button onclick="cerrarModalVendedor()" class="delete">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="productoModal" class="modal">
+        <div class="modal-content">
+            <h2 id="tituloProductoModal">Agregar Producto</h2>
+            <input id="productoId" type="hidden"><input id="productoTipo" type="hidden">
+            <div><label>Código</label><input id="productoCodigo"></div>
+            <div><label>Nombre</label><input id="productoNombre"></div>
+            <div><label>Precio</label><input id="productoPrecio" type="number" step="0.01"></div>
+            <div class="actions">
+                <button onclick="guardarProducto()">Guardar</button>
+                <button onclick="cerrarModalProducto()" class="delete">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="resumenModal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="cerrarResumenModal()">X</button>
+            <h2 style="margin-bottom:10px;">Resumen de Jornada</h2>
+            <div class="card grid" style="margin-bottom: 10px; padding: 10px; background: #f9f9f9;">
+                <div><label>Desde:</label><input type="date" id="filtroResumenFechaDesde" onchange="actualizarResumenJornada()"></div>
+                <div><label>Hasta:</label><input type="date" id="filtroResumenFechaHasta" onchange="actualizarResumenJornada()"></div>
+                <div><label>Vendedor:</label><select id="filtroResumenVendedor" onchange="actualizarResumenJornada()"></select></div>
+                <div><label>Zona:</label><select id="filtroResumenZona" onchange="actualizarResumenJornada()"></select></div>
+            </div>
+            <div id="resumenJornada" style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; padding: 5px; margin-bottom: 10px;"></div>
+            <div class="actions">
+                <button onclick="generarPDF()" class="success" style="width: 100%;">PDF Ventas Clientes</button>
+                <button onclick="generarPDFResumenProductos()" class="success" style="width: 100%;">PDF Resumen Productos</button>
+                <button onclick="cerrarResumenModal()" class="delete" style="width: 100%;">Volver / Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h2 id="confirmTitle">Confirmar</h2>
+            <p id="confirmMessage"></p>
+            <div class="actions">
+                <button onclick="confirmarAccion()">Sí</button>
+                <button onclick="cancelarAccion()" class="delete">No</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Librerías -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Módulos de Aplicación -->
+    <script src="js/config.js"></script>
+    <script src="js/visitas.js"></script>
+    <script src="js/remitos.js"></script>
+    <script src="js/gestion.js"></script>
+    <script src="js/historial.js"></script>
+    <script src="js/pdf_gen.js"></script>
+</body>
+</html>
